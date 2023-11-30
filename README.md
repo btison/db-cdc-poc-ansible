@@ -1,0 +1,1 @@
+Ansible playbooks to install the OpenShift part of the Databricks CDC PoC.
