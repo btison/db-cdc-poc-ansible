@@ -1,0 +1,10 @@
+---
+
+- name: Install AMQ Streams Operator
+  ansible.builtin.include_tasks: amq_streams_operator.yml
+
+- name: Install OpenShift Gitops
+  ansible.builtin.include_tasks: openshift_gitops.yml
+
+- name: Install PoC assets
+  ansible.builtin.include_tasks: install_poc.yml

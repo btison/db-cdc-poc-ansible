@@ -1,0 +1,17 @@
+---
+
+- name: "Ensure namespace for PoC exists"
+  kubernetes.core.k8s:
+    state: present
+    api_version: v1
+    kind: Namespace
+    name: "{{ cdc_poc_namespace }}"
+
+- name: Create AMQ TLS secret from source secret
+  when: amq_streams_tls_secret_from_source_secret | bool
+  ansible.builtin.include_tasks: amq_streams_tls_secret.yml
+
+- name: Deploy PoC Application
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'cdc-poc.yaml.j2') | from_yaml }}"

@@ -1,0 +1,24 @@
+---
+
+- name: Remove Gitops application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: "{{ cdc_poc_application_namespace }}"
+    name: "{{ cdc_poc_application_name }}"
+
+- name: Remove Kafka topics
+  kubernetes.core.k8s:
+    state: absent
+    api_version: kafka.strimzi.io/v1beta2
+    kind: KafkaTopic
+    label_selectors:
+      - "strimzi.io/cluster = {{ amq_streams_kafka_broker_name }}"
+
+- name: Remove project namespace
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Namespace
+    name: "{{ cdc_poc_namespace }}"

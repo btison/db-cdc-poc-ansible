@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ cdc_poc_application_name }}
+  namespace: {{ cdc_poc_application_namespace }}
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io/foreground
+spec:
+  destination:
+    name: ""
+    namespace: {{ cdc_poc_namespace }}
+    server: 'https://kubernetes.default.svc'
+  project: default
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+  source:
+    repoURL: {{ cdc_poc_gitops_repo }}
+    targetRevision: {{ cdc_poc_gitops_repo_tag }}
+    path: {{ cdc_poc_gitops_repo_path }}
+    helm:
+      values: |
+
+        kafka-broker:
+          nameOverride: {{ amq_streams_kafka_broker_name }}
+          authentication:
+            clientId: "{{ amq_streams_kafka_broker_authn_client_id }}"
+            clientSecret: "{{ amq_streams_kafka_broker_authn_client_secret }}"
+            securityProtocol: "{{ amq_streams_kafka_broker_authn_security_protocol }}"
+            saslMechanism: "{{ amq_streams_kafka_broker_authn_sasl_mechanism }}"
+        kafka-topics:
+          kafka:
+            cluster: {{ amq_streams_kafka_broker_name }}
+        kafdrop:
+          kafka:
+            bootstrapServer: "{{ amq_streams_kafka_broker_name }}-kafka-bootstrap-{{ cdc_poc_namespace }}.{{ r_openshift_subdomain }}:443"
+            clientId: "{{ amq_streams_kafka_broker_authn_client_id }}"
+            clientSecret: "{{ amq_streams_kafka_broker_authn_client_secret }}"
+            securityProtocol: "{{ amq_streams_kafka_broker_authn_security_protocol_external }}"
+            saslMechanism: "{{ amq_streams_kafka_broker_authn_sasl_mechanism }}"
+        kafka-connect:
+          nameOverride: "{{ kafka_connect_name }}"
+          kafka:
+            bootstrapServer: "{{ amq_streams_kafka_broker_name }}-kafka-bootstrap.{{ cdc_poc_namespace }}.svc.cluster.local:9092"
+            securityProtocol: "{{ amq_streams_kafka_broker_authn_security_protocol }}"
+            saslMechanism: "{{ amq_streams_kafka_broker_authn_sasl_mechanism }}"
+            clientId: "{{ amq_streams_kafka_broker_authn_client_id }}"
+        debezium:
+          nameOverride: pos
+          connector:
+            kafkaConnect: "{{ kafka_connect_name }}"
+            database:
+              hostname: "{{ debezium_database_hostname }}"
+              user: "{{ debezium_database_username }}"
+              password: "{{ debezium_database_password }}"
+              dbname: "{{ debezium_database_dbname }}"
+              topicPrefix: "{{ debezium_topic_prefix }}"

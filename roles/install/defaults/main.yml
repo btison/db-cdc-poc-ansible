@@ -1,0 +1,237 @@
+---
+become_override: false
+silent: false
+
+# ------------------------------------------------
+# AMQ Streams Operator
+# ------------------------------------------------
+
+amq_streams_operator_channel: ""
+amq_streams_operator_automatic_install_plan_approval: true
+amq_streams_operator_starting_csv: ""
+amq_streams_operator_name: amq-streams
+amq_streams_operator_namespace: openshift-operators
+amq_streams_operator_catalog: redhat-operators
+amq_streams_operator_csv_prefix: amqstreams
+amq_streams_operator_wait_for_deploy: true
+amq_streams_operator_use_catalog_snapshot: false
+amq_streams_operator_catalogsource_name: ""
+amq_streams_operator_catalog_snapshot_image: ""
+amq_streams_operator_catalog_snapshot_image_tag: ""
+
+# ------------------------------------------------
+# OpenShift Gitops
+# ------------------------------------------------
+
+openshift_gitops_operator_channel: latest
+openshift_gitops_operator_automatic_install_plan_approval: true
+openshift_gitops_operator_starting_csv: ""
+openshift_gitops_operator_name: openshift-gitops-operator
+openshift_gitops_operator_namespace: openshift-operators
+openshift_gitops_operator_catalog: redhat-operators
+openshift_gitops_operator_use_catalog_snapshot: false
+openshift_gitops_operator_catalogsource_name: ""
+openshift_gitops_operator_catalogsource_namespace: openshift-operators
+openshift_gitops_operator_catalog_snapshot_image: ""
+openshift_gitops_operator_catalog_snapshot_image_tag: ""
+
+openshift_gitops_setup_cluster_admin: true
+
+openshift_gitops_update_route_tls: true
+
+openshift_gitops_update_resources: true
+
+# ApplicationSet Controller
+openshift_gitops_applicationset_controller_update: false
+openshift_gitops_applicationset_controller_requests_cpu: 250m
+openshift_gitops_applicationset_controller_requests_memory: 512Mi
+openshift_gitops_applicationset_controller_limits_cpu: "2"
+openshift_gitops_applicationset_controller_limits_memory: 1Gi
+
+# Application Controller
+openshift_gitops_controller_update: true
+openshift_gitops_controller_requests_cpu: 512m
+openshift_gitops_controller_requests_memory: 1Gi
+openshift_gitops_controller_limits_cpu: "4"
+openshift_gitops_controller_limits_memory: 4Gi
+# Setting a default value for reconcile timeout as it needs to be configurable
+# Reduce this value if you want to sync more frequently
+openshift_gitops_controller_app_sync: 3m
+
+openshift_gitops_controller_remove_memory_limits: false
+
+# Redis
+openshift_gitops_redis_update: false
+openshift_gitops_redis_requests_cpu: 250m
+openshift_gitops_redis_requests_memory: 128Mi
+openshift_gitops_redis_limits_cpu: 500m
+openshift_gitops_redis_limits_memory: 256Mi
+
+# Repo Server
+openshift_gitops_repo_update: true
+openshift_gitops_repo_requests_cpu: 500m
+openshift_gitops_repo_requests_memory: 512Mi
+openshift_gitops_repo_limits_cpu: "2"
+openshift_gitops_repo_limits_memory: 2Gi
+
+# DEX
+openshift_gitops_dex_update: false
+openshift_gitops_dex_requests_cpu: 125m
+openshift_gitops_dex_requests_memory: 128Mi
+openshift_gitops_dex_limits_cpu: 500m
+openshift_gitops_dex_limits_memory: 256Mi
+
+# Server
+openshift_gitops_server_update: false
+openshift_gitops_server_requests_cpu: 250m
+openshift_gitops_server_requests_memory: 128Mi
+openshift_gitops_server_limits_cpu: 500m
+openshift_gitops_server_limits_memory: 256Mi
+
+openshift_gitops_resource_customizations: |
+  operators.coreos.com/Subscription:
+    health.lua: |
+      health_status = {}
+      if obj.status ~= nil then
+        if obj.status.conditions ~= nil then
+          numDegraded = 0
+          numPending = 0
+          msg = ""
+          for i, condition in pairs(obj.status.conditions) do
+            msg = msg .. i .. ": " .. condition.type .. " | " .. condition.status .. "\n"
+            if condition.type == "InstallPlanPending" and condition.status == "True" then
+              numPending = numPending + 1
+            elseif (condition.type == "InstallPlanMissing" and condition.reason ~= "ReferencedInstallPlanNotFound") then
+              numDegraded = numDegraded + 1
+            elseif (condition.type == "CatalogSourcesUnhealthy" or condition.type == "InstallPlanFailed") and condition.status == "True" then
+              numDegraded = numDegraded + 1
+            end
+          end
+          if numDegraded == 0 and numPending == 0 then
+            health_status.status = "Healthy"
+            health_status.message = msg
+            return health_status
+          elseif numPending > 0 and numDegraded == 0 then
+            health_status.status = "Progressing"
+            health_status.message = "An install plan for a subscription is pending installation"
+            return health_status
+          else
+            health_status.status = "Degraded"
+            health_status.message = msg
+            return health_status
+          end
+        end
+      end
+      health_status.status = "Progressing"
+      health_status.message = "An install plan for a subscription is pending installation"
+      return health_status
+
+# e.g.
+# openshift_gitops_resource_customizations: |
+  # argoproj.io/Application:
+  #   health.lua: |
+  #     hs = {}
+  #     hs.status = "Progressing"
+  #     hs.message = ""
+  #     if obj.status ~= nil then
+  #       if obj.status.health ~= nil then
+  #         hs.status = obj.status.health.status
+  #         hs.message = obj.status.health.message
+  #       end
+  #     end
+  #     return hs
+# --------------------------------
+# Operator Catalog Snapshot Settings
+# --------------------------------
+# See https://github.com/redhat-cop/agnosticd/blob/development/docs/Operator_Catalog_Snapshots.adoc
+# for instructions on how to set up catalog snapshot images
+
+# ------------------------------------------------
+# CDC PoC
+# ------------------------------------------------
+
+cdc_poc_namespace: cdc-poc
+cdc_poc_application_name: amq-streams
+cdc_poc_application_namespace: openshift-gitops
+cdc_poc_gitops_repo: https://github.com/btison/db-cdc-poc-helm.git
+cdc_poc_gitops_repo_tag: main
+cdc_poc_gitops_repo_path: cdc-poc
+
+# ------------------------------------------------
+# AMQ Streams
+# ------------------------------------------------
+
+amq_streams_tls_secret_from_source_secret: true
+amq_streams_tls_source_secret: ingress-certs
+amq_streams_tls_source_secret_namespace: openshift-ingress
+amq_streams_tls_source_secret_certificate: tls.crt
+amq_streams_tls_source_secret_private_key: tls.key
+amq_streams_tls_secret: kafka-tls
+amq_streams_tls_secret_certificate_key: tls.crt
+amq_streams_tls_secret_private_key_key: tls.key
+amq_streams_kafka_broker_name: "kafka"
+amq_streams_kafka_broker_authn_client_id: admin
+amq_streams_kafka_broker_authn_client_secret: kafkaadmin
+amq_streams_kafka_broker_authn_security_protocol: "SASL_PLAINTEXT"
+amq_streams_kafka_broker_authn_security_protocol_external: "SASL_SSL"
+amq_streams_kafka_broker_authn_sasl_mechanism: "SCRAM-SHA-512"
+amq_streams_kafka_client_secret: kafka-client-secret
+
+# ------------------------------------------------
+# Kafka Connect
+# ------------------------------------------------
+
+kafka_connect_name: kafka-connect
+
+# ------------------------------------------------
+# Debezium
+# ------------------------------------------------
+
+debezium_database_hostname: ""
+debezium_database_username: ""
+debezium_database_password: ""
+debezium_database_dbname: "pos"
+debezium_topic_prefix: "pos.updates"
+
+# ------------------------------------------------
+# Globex Application
+# ------------------------------------------------
+
+globex_namespace: globex
+globex_wait_for_kafka_broker: true
+globex_kafka_topics_helm_chart: kafka-topics
+globex_kafka_topics_helm_chart_ref: ../../helm/globex/kafka-topics
+globex_globex_db_helm_chart: globex-db
+globex_globex_db_helm_chart_ref: ../../helm/globex/globex-db
+globex_globex_db_wait_for_deploy: true
+globex_globex_db_name: globex-db
+globex_globex_store_app_helm_chart: globex-store-app
+globex_globex_store_app_helm_chart_ref: ../../helm/globex/globex-store-app
+globex_globex_web_helm_chart: globex-web
+globex_globex_web_helm_chart_ref: ../../helm/globex/globex-web
+globex_globex_web_sso_url: "https://{{ rhsso_name }}.{{ r_openshift_subdomain }}/auth/realms/globex"
+globex_globex_web_sso_client: globex-web-gateway
+globex_globex_web_sso_logout_uri: "https://{{ globex_globex_web_helm_chart }}-{{ globex_namespace }}.{{ r_openshift_subdomain }}/home"
+globex_activity_tracking_helm_chart: activity-tracking
+globex_activity_tracking_helm_chart_ref: ../../helm/globex/activity-tracking
+globex_recommendation_engine_helm_chart: recommendation-engine
+globex_recommendation_engine_helm_chart_ref: ../../helm/globex/recommendation-engine
+globex_activity_tracking_simulator_helm_chart: activity-tracking-simulator
+globex_activity_tracking_simulator_helm_chart_ref: ../../helm/globex/activity-tracking-simulator
+globex_order_simulator_helm_chart: order-simulator
+globex_order_simulator_helm_chart_ref: ../../helm/globex/order-simulator
+
+# ------------------------------------------------
+# Globex CDC
+# ------------------------------------------------
+
+globex_cdc_namespace: globex-cdc
+globex_cdc_kafka_client_secret_helm_chart: kafka-client-secret
+globex_cdc_kafka_client_secret_helm_chart_ref: ../../helm/globex-cdc/kafka-client-secret
+globex_cdc_kafka_client_secret: kafka-client-secret
+globex_cdc_kafka_connect_helm_chart: kafka-connect
+globex_cdc_kafka_connect_helm_chart_ref: ../../helm/globex-cdc/kafka-connect
+globex_cdc_order_aggregator_helm_chart: order-aggregator
+globex_cdc_order_aggregator_helm_chart_ref: ../../helm/globex-cdc/order-aggregator
+globex_cdc_debezium_helm_chart: debezium
+globex_cdc_debezium_helm_chart_ref: ../../helm/globex-cdc/debezium
